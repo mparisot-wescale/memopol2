@@ -55,6 +55,15 @@ Create the virtualenv for memopol:
 
 Your command prompt should now begin by (memopol2)
 
+On further usage, to set the virtualenv for memopol:
+
+   workon memopol2
+   
+To unset the current virtualenv: 
+
+   deactivate
+
+
 Install memopol2's dependencies:
 
     pip install -r requirements.txt
