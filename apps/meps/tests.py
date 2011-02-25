@@ -7,15 +7,16 @@ class ViewsTest(TestCase):
     """
     def setUp(self):
         self.client = Client()
-    
+
     def test_index_names(self):
         """
         Tests index_names context.
         """
         response = self.client.get(reverse("meps:index_names"))
         self.failUnlessEqual(len(response.context['meps']), 1194)
-        self.failUnlessEqual(response.context['meps'].first().group, u"ECR")
-        self.failUnlessEqual(response.context['meps'].first().first, u"Adam")
+        self.assertTrue(u"ECR" in [i.group for i in response.context['meps']])
+        a = response.context['meps'].all()[:2]
+        self.assertTrue(a[0].last[0] < a[1].last[1])
 
     def test_index_groups(self):
         """
@@ -60,3 +61,21 @@ class ViewsTest(TestCase):
         self.failUnlessEqual(str(response.context['mep']['contact']['address'][0]['street']), '60, rue Wiertz')
         self.failUnlessEqual(repr(response.context['positions']), "[]")
         self.failUnlessEqual(repr(response.context['visible_count']), "0")
+
+    def test_js_functionnal_test(self):
+        """
+        Test the functionnal test that allow to make the js fail
+        """
+        from django.conf import settings
+        settings.DEBUG = True
+        response = self.client.get(reverse("meps:mep_addposition", args=('AlbertDess',)), HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.failUnlessEqual(response.content, '{"success": true}')
+
+    def test_js_functionnal_test_make_fail(self):
+        """
+        Test the functionnal test that allow to make the js fail
+        """
+        from django.conf import settings
+        settings.DEBUG = True
+        response = self.client.get(reverse("meps:mep_addposition", args=('AlbertDess',)), {'text' : 'fail'}, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.failUnlessEqual(response.content, '{"success": false}')

@@ -10,6 +10,7 @@ from django.views.generic.simple import direct_to_template
 from django.contrib.admin.views.decorators import staff_member_required
 
 from meps.models import Position, MEP
+from votes.models import Vote
 
 def index_names(request):
     meps_by_name = MEP.view('meps/by_name')
@@ -40,7 +41,7 @@ def index_groups(request):
 
 def index_countries(request):
     countries = MEP.view('meps/countries')
-    
+
     # TODO: find a way to do the reduce at the couchdb level
     from collections import defaultdict
     py_countries = defaultdict(dict)
@@ -52,9 +53,12 @@ def index_countries(request):
     countries = list(py_countries.values())
     countries.sort(key=lambda dic: dic['name'])
     # /TODO
-    
+
+    votes = Vote.view('votes/all')
+
     context = {
         'countries': countries,
+        'votes' : votes,
     }
     return direct_to_template(request, 'index.html', context)
 
@@ -87,8 +91,8 @@ def mep_raw(request, mep_id):
     mep_ = MEP.view('meps/by_id', key=mep_id).first()
     jsonstr = simplejson.dumps(mep_, indent=4)
     context = {
-        'mep_id': mep_id, 
-        'mep': mep_, 
+        'mep_id': mep_id,
+        'mep': mep_,
         'jsonstr': jsonstr,
     }
     return direct_to_template(request, 'meps/mep_raw.html', context)
@@ -99,8 +103,11 @@ def mep_addposition(request, mep_id):
     results = {'success':False}
     # make sure the mep exists
     mep_ = MEP.view('meps/by_id', key=mep_id).first()
+
+    # For testing purpose: add the possibility to cause a failure in the js (if
+    # in debug) to see what's would happened for the user
     try:
-        text = request.GET[u'text']
+        text = request.GET.get(u'text', '')
         if settings.DEBUG:
             if 'slow' in text:
                 time.sleep(10)

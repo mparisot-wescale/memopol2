@@ -5,7 +5,7 @@
 
 {% if meps %}
     <h1>{% trans "Members of the European Parliament" %}</h1>
-    <ul>
+    <ul class="col">
         {% for mep in meps %}
             <li>
                 <img class="grouplogo" src="{{ MEDIA_URL }}img/groups/eu/{{ mep.group|cut:"/" }}.png" />
@@ -17,13 +17,25 @@
 
 {% if countries %}
     <h1>{% trans "MEPs by country" %}</h1>
-    <ul>
+    <ul class="col">
     {% for country in countries %}
         <li>
             <a href="{% url meps:index_by_country country.code %}">
                 <img src="{{ MEDIA_URL }}img/countries/small/{{ country.code }}.png"/>
-            </a>&nbsp;<a href="{% url meps:index_by_country country.code %}">{{ country.key }}</a> 
+                {{ country.name }}</a>&nbsp;
+            <a href="{% url meps:index_by_country country.code %}">{{ country.key }}</a>
             {% blocktrans with country.count as count %} - {{ count }} MEPs {% endblocktrans %}
+        </li>
+    {% endfor %}
+    </ul>
+{% endif %}
+
+{% if votes %}
+    <h1>{% trans "List of Votes" %}</h1>
+    <ul>
+    {% for vote in votes %}
+        <li>
+            <a href="{% url votes:detail vote.wiki %}">{{ vote.label }}</a>
         </li>
     {% endfor %}
     </ul>
@@ -31,7 +43,7 @@
 
 {% if groups %}
     <h1>{% trans "MEPs by political group" %}</h1>
-    <ul>
+    <ul class="col">
     {% for group in groups %}
         <li>
             <a href="{% url meps:index_by_group group.code %}">
