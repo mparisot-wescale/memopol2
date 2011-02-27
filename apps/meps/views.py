@@ -1,15 +1,18 @@
 import time
+from os.path import realpath
 from datetime import datetime
+
+import simplejson
 
 from django.http import HttpResponse, HttpResponseServerError
 from django.shortcuts import get_object_or_404
-from django.utils import simplejson
 from django.core import serializers
 from django.conf import settings
 from django.views.generic.simple import direct_to_template
 from django.contrib.admin.views.decorators import staff_member_required
 
-from meps.models import Position, MEP
+from meps.models import MEP, Position
+
 
 def index_names(request):
     meps_by_name = MEP.view('meps/by_name')
@@ -29,8 +32,6 @@ def index_groups(request):
     return direct_to_template(request, 'index.html', context)
 
 def index_countries(request):
-    countries = MEP.view('meps/countries')
-
     countries = list(MEP.view('meps/countries', group=True))
     countries.sort(key=lambda group: group['value']['count'], reverse=True)
 
@@ -41,33 +42,61 @@ def index_countries(request):
 
 def index_by_country(request, country_code):
     meps_by_country = MEP.view('meps/by_country', key=country_code)
+    country_infos = MEP.view('meps/countries', key=country_code)
+
     context = {
         'meps': meps_by_country,
+        'country': list(country_infos)[0]['value']['name'],
     }
     return direct_to_template(request, 'index.html', context)
 
 def index_by_group(request, group):
     meps_by_group = MEP.view('meps/by_group', key=group)
+    group_infos = MEP.view('meps/groups', key=group)
     context = {
         'meps': meps_by_group,
+        'group': list(group_infos)[0]['value']['name'],
     }
     return direct_to_template(request, 'index.html', context)
 
+def score_to_color(score):
+    """
+    map a score between 0 and 100 to a red-green colorspace
+    """
+    red = 255 - score
+    green = score * 2.55
+    return "rgb(%d, %d, 0)" % (red, green)
+
 def mep(request, mep_id):
-    mep_ = MEP.view('meps/by_id', key=mep_id).first()
+    mep_ = MEP.get(mep_id)
     positions = Position.objects.filter(mep_id=mep_id)
     score_list = mep_.scores
-    print score_list
-    print "XXX"
-    score_list.sort(key = lambda k : k['value'])
-    print score_list
-    scores = [s['value'] for s in mep_.scores]
-    
-    #AAAWWWFFFUUUUUULLLLLLL
-    i=0
     for score in score_list:
-        score_list[i] = {'label': score['label'], 'value': score['value'], 'couleur': score['value']/10}
-        i+=1
+        score['color'] = score_to_color(int(score['value']))
+    score_list.sort(key = lambda k : datetime.strptime(k['date'], "%d/%m/%Y"))
+    scores = [s['value'] for s in mep_.scores]
+
+    if score_list:
+        try:
+            import numpy
+            import matplotlib
+            matplotlib.use("Agg")
+            from matplotlib import pyplot
+
+            pyplot.plot(scores, 'bo')
+            a, b = numpy.polyfit(range(len(scores)), [int(x) for x in scores], 1)
+            pyplot.plot([a*int(x) + b for x in range(len(scores))])
+            pyplot.legend(('Scores', 'Mediane'), 'best', shadow=True)
+            pyplot.plot(scores)
+            pyplot.axis([0, len(scores) - 1, 0, 102])
+            pyplot.title("%s - Votes notes evolution over time" % (mep_.infos['name']['full']))
+            pyplot.xticks(range(len(scores)), [k['date'] for k in score_list])
+            pyplot.xlabel("Votes dates")
+            pyplot.ylabel("Scores on votes")
+            pyplot.savefig(realpath(".%simg/trends/meps/%s-scores.png" % (settings.MEDIA_URL, mep_id)), format="png")
+            pyplot.clf()
+        except ImportError:
+            pass
 
     context = {
         'mep_id': mep_id,
@@ -76,14 +105,17 @@ def mep(request, mep_id):
         'visible_count': len([x for x in positions if x.visible]),
         'average': sum(scores)/len(scores) if len(scores) > 0 else "",
         'score_list' : score_list,
-        'color_index' : map(lambda  i : int(float(i))/10 , scores),   ## TODO color_index
-        'vote_colors' : ['#ff0000', '#dd0022', '#bb0044', '#dd0022', '#bb0044', '#990066', '#770088', '#5500aa', '#3300cc', '#0000ff'],
     }
     return direct_to_template(request, 'meps/mep.html', context)
 
+def mep_json(request, mep_id):
+    mep_ = MEP.get(mep_id)
+    jsonstr = simplejson.dumps(dict(mep_), indent=4, use_decimal=True)
+    return HttpResponse(jsonstr)
+
 def mep_raw(request, mep_id):
-    mep_ = MEP.view('meps/by_id', key=mep_id).first()
-    jsonstr = simplejson.dumps(dict(mep_), indent=4)
+    mep_ = MEP.get(mep_id)
+    jsonstr = simplejson.dumps(dict(mep_), indent=4, use_decimal=True)
     context = {
         'mep_id': mep_id,
         'mep': mep_,
@@ -150,3 +182,4 @@ def moderation_moderate_positions(request):
     except:
         pass
     return HttpResponse(simplejson.dumps(results), mimetype='application/json')
+

@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% load recursedict %}
 
 {% block sidelinks %}
     <li><a href="{% url meps:mep_raw mep_id %}">{% trans "View Raw JSON" %}</a></li>
@@ -31,7 +30,7 @@
 	<h2 class="collapsible expanded">{% trans "Contact" %}</h2>
 
 		<ul class="body">
-		{% for addr in mep.contact.address %}
+		{% for city,addr in mep.contact.address.items %}
 		<li><b>{{ addr.label|default:_("Other adresse") }}</b><br/>
 			{% if addr.building %} {% trans "Building" %} {{ addr.building.name }} {{ addr.office}}<br/>{% endif %}
 			{{ addr.street }}, {{ addr.postcode }} {{ addr.city }}<br/>
@@ -88,14 +87,16 @@
 
 {% if mep.scores %}
     <div id="scores">
-        <h2 class="collapsible collapsed">{% trans "Scores" %} (TODO moyenne: {{average}})</h2>
+        <h2 class="collapsible collapsed">{% trans "Scores average" %} : {{ average|floatformat:0 }}</h2>
         <ul class="body">
         {% for score in score_list %}
-        <li style="background:rgb({{ score.couleur }}, 0, 0)">
+        <li style="background:{{ score.color }}">
+
             {{ score.label }}: <strong>{{ score.value }}</strong> ({% trans "on" %} {{ score.date }})<br/><a target="_" href="http://www.laquadrature.net/wiki/{{ score.wiki }}">{% trans "Read more..." %}</a>
             </li>
         {% endfor %}
         </ul>
+        <img src="/static/img/trends/meps/{{ mep_id }}-scores.png" />
     </div>
 {% endif %}
 
@@ -169,7 +170,7 @@ function addPositionSubmitButtonClicked()
     <button id="addPositionCancelButton" class="cancel">{% trans "Cancel" %}</button>
 </div>
 
-<button id="addPositionButton" class="submit">{% trans "Add this opinion" %}</button>
+<button id="addPositionButton" class="submit">{% trans "Add an opinion" %}</button>
 </section>
 
 </article>
